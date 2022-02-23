@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<modification>
+  <name>Cashback For Goods</name>
+  <code>cashback_for_goods</code>
+  <version>1.0.0</version>
+  <author>serge</author>
+  <link></link>
+    <file path="admin/controller/catalog/manufacturer.php">
+        <operation>
+              <search><![CDATA[
+                $this->load->model('setting/store');
+              ]]></search>
+              <add position="before"><![CDATA[
+                $this->load->model('localisation/language');
+
+                $data['languages'] = $this->model_localisation_language->getLanguages();
+
+                if (isset($this->request->post['manufacturer_cashback'])) {
+                        $data['manufacturer_cashback'] = $this->request->post['manufacturer_cashback'];
+                } elseif (!empty($manufacturer_info)) {
+                        $data['manufacturer_cashback'] = $this->model_catalog_manufacturer->getManufacturerCashback($this->request->get['manufacturer_id']);
+                } else {
+                        $data['manufacturer_cashback'] = array();
+                }
+              ]]></add>
+        </operation>
+    </file>
+    <file path="admin/model/catalog/manufacturer.php">
+        <operation>
+            <search><![CDATA[$manufacturer_id = $this->db->getLastId();]]></search>
+            <add position="after"><![CDATA[
+                foreach ($data['manufacturer_cashback'] as $language_id => $value) {
+			        $this->db->query("INSERT INTO " . DB_PREFIX . "manufacturer_cashback SET manufacturer_id = '" . (int)$manufacturer_id . "', language_id = '" . (int)$language_id . "', cashback = '" . $this->db->escape($value['cashback']) . "'");
+		        }
+            ]]></add>
+        </operation>
+        <operation>
+          <search><![CDATA[public function editManufacturer($manufacturer_id, $data) {]]></search>
+          <add position="after"><![CDATA[
+            $this->db->query("DELETE FROM " . DB_PREFIX . "manufacturer_cashback WHERE manufacturer_id = '" . (int)$manufacturer_id . "'");
+
+            foreach ($data['manufacturer_cashback'] as $language_id => $value) {
+            $this->db->query("INSERT INTO " . DB_PREFIX . "manufacturer_cashback SET manufacturer_id = '" . (int)$manufacturer_id . "', language_id = '" . (int)$language_id . "', cashback = '" . $this->db->escape($value['cashback']) . "'");
+        }
+        ]]></add>
+        </operation>
+        <operation>
+          <search><![CDATA[public function deleteManufacturer($manufacturer_id) {]]></search>
+          <add position="after"><![CDATA[
+                $this->db->query("DELETE FROM `" . DB_PREFIX . "manufacturer_cashback` WHERE manufacturer_id = '" . (int)$manufacturer_id . "'");
+            ]]></add>
+        </operation>
+        <operation>
+          <search><![CDATA[public function getTotalManufacturers() {]]></search>
+          <add position="before"><![CDATA[
+            public function getManufacturerCashback($manufacturer_id) {
+		        $manufacturer_cashback_data = array();
+
+		        $query = $this->db->query("SELECT * FROM " . DB_PREFIX . "manufacturer_cashback WHERE manufacturer_id = '" . (int)$manufacturer_id . "'");
+
+		        foreach ($query->rows as $result) {
+				        $manufacturer_cashback_data[$result['language_id']] = array(
+					        'cashback'      => $result['cashback']
+				    );
+		        }
+
+		        return $manufacturer_cashback_data;
+	        }
+          ]]></add>
+        </operation>
+    </file>
+    <file path="admin/view/template/catalog/manufacturer_form.twig">
+        <operation>
+            <search><![CDATA[<label class="col-sm-2 control-label" for="input-sort-order">{{ entry_sort_order }}</label>]]></search>
+            <add position="before" offset="1"><![CDATA[
+                    <ul class="nav nav-tabs" id="language">
+                        {% for language in languages %}
+                          <li class="active"><a href="#language{{ language.language_id }}" data-toggle="tab"><img src="language/{{ language.code }}/{{ language.code }}.png" title="{{ language.name }}"/> {{ language.name }}</a></li>
+                        {% endfor %}
+                    </ul>
+                    <div class="tab-content">{% for language in languages %}
+                      <div class="tab-pane active" id="language{{ language.language_id }}">
+                          <label class="col-sm-2 control-label" for="input-cashback{{ language.language_id }}">{{ entry_cashback }}</label>
+                          <div class="col-sm-10">
+                            <textarea name="manufacturer_cashback[{{ language.language_id }}][cashback]" placeholder="{{ entry_cashback }}" id="input-manufacturer-cashback{{ language.language_id }}" data-toggle="summernote" data-lang="{{ summernote }}" class="form-control">{{ manufacturer_cashback[language.language_id] ? manufacturer_cashback[language.language_id].cashback }}</textarea>
+                          </div>
+                      </div>
+                    {% endfor %}</div>
+            ]]></add>
+        </operation>
+        <operation>
+            <search><![CDATA[{{ footer }}]]></search>
+            <add position="before"><![CDATA[
+                <script type="text/javascript" src="view/javascript/summernote/summernote.js"></script>
+                <link href="view/javascript/summernote/summernote.css" rel="stylesheet" />
+                <script type="text/javascript" src="view/javascript/summernote/opencart.js"></script>
+                <script type="text/javascript">
+                        {% for language in languages %}
+                                $('#input-manufacturer-cashback{{ language['language_id'] }}').summernote({height: 300});
+                        {% endfor %}
+                $('#language a:first').tab('show');</script>
+	        ]]></add>
+        </operation>
+    </file>
+    <file path="admin/language/en-gb/catalog/manufacturer.php">
+        <operation>
+            <search><![CDATA[$_['entry_sort_order']  = 'Sort Order';]]></search>
+            <add position="after"><![CDATA[$_['entry_cashback']    = 'Cashback';]]></add>
+        </operation>
+    </file>
+    <file path="admin/language/ru-ru/catalog/manufacturer.php">
+        <operation>
+            <search><![CDATA[$_['entry_sort_order']  = 'Порядок сортировки';]]></search>
+            <add position="after"><![CDATA[$_['entry_cashback']    = 'Кэшбэк';]]></add>
+        </operation>
+    </file>
+    <file path="catalog/model/catalog/manufacturer.php">
+        <operation>
+            <search><![CDATA[public function getManufacturers($data = array()) {]]></search>
+            <add position="before"><![CDATA[
+                    public function getManufacturerCashback($manufacturer_id) {
+
+                    $query = $this->db->query("SELECT * FROM " . DB_PREFIX . "manufacturer_cashback WHERE manufacturer_id = '" . (int)$manufacturer_id . "' AND language_id = '" . (int)$this->config->get('config_language_id') . "'");
+
+                    if($query->rows) {
+                        return $query->row['cashback'];
+                    } else {
+                        return false;
+                    }
+                }
+	        ]]></add>
+        </operation>
+    </file>
+    <file path="catalog/controller/product/product.php">
+        <operation>          
+            <search><![CDATA[$data['description'] = html_entity_decode($product_info['description'], ENT_QUOTES, 'UTF-8');]]></search>
+            <add position="after"><![CDATA[
+                    $this->load->model('catalog/manufacturer');
+			        $cashback = $this->model_catalog_manufacturer->getManufacturerCashback($product_info['manufacturer_id']);
+			
+			        if ($cashback) {
+				    $data['cashback'] = html_entity_decode($cashback, ENT_QUOTES, 'UTF-8');
+			    }
+	        ]]></add>
+        </operation>
+    </file>
+    <file path="catalog/view/theme/*/template/product/product.twig">
+        <operation>
+            <search><![CDATA[<button type="button" id="button-cart" data-loading-text="{{ text_loading }}" class="fm-product-btn fm-product-btn-cart d-flex align-items-center justify-content-center"><img src="catalog/view/theme/oct_feelmart/img/shop-cart-icon.svg" alt="{{ button_cart }}"><span>{{ button_cart }}</span></button>]]></search>
+            <add position="after" offset="1"><![CDATA[
+                {% if cashback %}
+                    <div id="cash">{{ cashback }}</div>
+                {% endif %}
+	        ]]></add>
+        </operation>
+    </file>
+</modification>
